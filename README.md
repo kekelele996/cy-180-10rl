@@ -35,6 +35,7 @@ docker compose down -v --remove-orphans
 - 采访项目管理：创建、编辑、状态流转（草稿 → 进行中 → 已完成 → 已归档）、删除
 - 采访问题管理：为项目添加问题清单，作为录音提纲
 - 录音管理：浏览器端录音 → 上传 MinIO → 自动关联到对应问题 → 一句话摘要
+- 录音人工排序：同一问题下的录音支持上移/下移并保存，采访工作台与项目时间线按新顺序播放；新录音自动接在末尾，删除中间片段不影响其余顺序，跨问题不会混排
 - 时间轴：按项目/录音标注关键节点，项目页按时间线展示所有片段并支持播放
 - 操作审计日志（仅管理员）、全局错误处理与请求追踪（request_id）
 
@@ -156,6 +157,7 @@ npm run dev                # 默认 http://localhost:5173，/api 代理到 http:
 | GET | /api/v1/recordings/:id | 录音详情 | 登录 |
 | PUT | /api/v1/recordings/:id | 更新录音 | 登录 |
 | PUT | /api/v1/recordings/:id/summary | 更新一句话摘要 | 登录 |
+| PUT | /api/v1/questions/:id/recordings/order | 保存某问题下录音的人工播放顺序（复用 RecordingService.Reorder，采访工作台与项目时间线共用） | 登录 |
 | POST | /api/v1/recordings/:id/audio | 上传录音（multipart） | 登录 |
 | GET | /api/v1/recordings/:id/audio | 播放音频流 | 登录 |
 | DELETE | /api/v1/recordings/:id | 删除录音 | 登录 |
@@ -203,6 +205,12 @@ curl -sS -X POST http://localhost:9180/api/v1/recordings/1/audio \
 curl -sS -X PUT http://localhost:9180/api/v1/recordings/1/summary \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   -d '{"summary":"王奶奶回忆童年在胡同里捉迷藏的趣事"}'
+
+# 保存某问题下录音的人工播放顺序（recording_ids 按目标顺序排列，
+# 未包含的录音按原相对顺序顺延，混入其他问题的录音会被拒绝）
+curl -sS -X PUT http://localhost:9180/api/v1/questions/1/recordings/order \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"recording_ids":[3,1,2]}'
 
 # 标注时间轴节点
 curl -sS -X POST http://localhost:9180/api/v1/timeline-markers \

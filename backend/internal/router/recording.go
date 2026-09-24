@@ -22,4 +22,6 @@ func RegisterRecordingRoutes(g *gin.RouterGroup, h *handler.RecordingHandler, cf
 		group.GET("/:id/audio", h.PlayAudio)
 		group.DELETE("/:id", h.Delete)
 	}
+	// 问题维度内的录音人工排序，路径挂在 /questions 下但归属录音模块，防止跨问题混排。
+	g.Group("/questions", middleware.Auth(cfg.JWTSecret, logger)).PUT("/:id/recordings/order", h.Reorder)
 }

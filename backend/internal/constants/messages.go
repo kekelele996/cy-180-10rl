@@ -15,6 +15,7 @@ const (
 	MsgQuestionDeleted    = "采访问题已删除"
 	MsgRecordingUploaded  = "录音上传成功"
 	MsgRecordingUpdated   = "录音信息更新成功"
+	MsgRecordingReordered = "录音播放顺序已保存"
 	MsgRecordingDeleted   = "录音已删除"
 	MsgMarkerCreated      = "时间轴节点标注成功"
 	MsgMarkerUpdated      = "时间轴节点更新成功"

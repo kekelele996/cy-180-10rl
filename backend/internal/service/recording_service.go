@@ -21,6 +21,8 @@ type RecordingService interface {
 	Update(actor *model.User, id uint, req *dto.UpdateRecordingRequest) (*model.Recording, error)
 	UpdateSummary(actor *model.User, id uint, summary string) (*model.Recording, error)
 	AttachAudio(actor *model.User, id uint, audioKey string, duration int) (*model.Recording, error)
+	// Reorder 保存某问题下录音的人工播放顺序，采访工作台与项目时间线共用该顺序。
+	Reorder(actor *model.User, questionID uint, recordingIDs []uint) ([]model.Recording, error)
 	Delete(actor *model.User, id uint) error
 	CountByProject(projectID uint) (int64, error)
 }
@@ -58,7 +60,8 @@ func (s *recordingService) Create(actor *model.User, req *dto.CreateRecordingReq
 		Status:          constants.RecordingStatusRecording,
 		CreatedBy:       actor.ID,
 	}
-	if err := s.recordingRepo.Create(recording); err != nil {
+	// 事务内取该问题当前最大序号 + 1，新录音固定接在末尾。
+	if err := s.recordingRepo.CreateWithNextSortOrder(recording); err != nil {
 		return nil, util.NewAppError(constants.CodeInternal, fmt.Sprintf("创建问题 %d 的录音失败", req.QuestionID), err)
 	}
 	s.logger.Info(fmt.Sprintf(constants.LogRecordingUpload, actor.Username, recording.ProjectID, recording.QuestionID, recording.DurationSeconds, recording.Status))
@@ -159,6 +162,34 @@ func (s *recordingService) AttachAudio(actor *model.User, id uint, audioKey stri
 	}
 	s.logger.Info(fmt.Sprintf(constants.LogRecordingUpload, actor.Username, recording.ProjectID, recording.QuestionID, recording.DurationSeconds, recording.Status))
 	return recording, nil
+}
+
+// Reorder 保存单个问题下的录音播放顺序：提交的 ID 按提交顺序排前，未提交的录音顺延，
+// 重复 ID 或混入其他问题的录音都会被拒绝，排序只影响本问题，不影响其他问题。
+func (s *recordingService) Reorder(actor *model.User, questionID uint, recordingIDs []uint) ([]model.Recording, error) {
+	if _, err := s.questionRepo.FindByID(questionID); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, util.NewAppError(constants.CodeNotFound, fmt.Sprintf("问题 %d 不存在", questionID), err)
+		}
+		return nil, util.NewAppError(constants.CodeInternal, fmt.Sprintf("查询问题 %d 失败", questionID), err)
+	}
+	seen := make(map[uint]bool, len(recordingIDs))
+	for _, id := range recordingIDs {
+		if seen[id] {
+			return nil, util.NewAppError(constants.CodeRecordingOrder, fmt.Sprintf("问题 %d 的录音排序包含重复的录音 %d", questionID, id), nil)
+		}
+		seen[id] = true
+	}
+	recordings, err := s.recordingRepo.ReorderWithinQuestion(questionID, recordingIDs)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotInQuestion) {
+			return nil, util.NewAppError(constants.CodeRecordingOrder,
+				fmt.Sprintf("问题 %d 的录音排序包含不属于该问题的录音，不能跨问题混排", questionID), err)
+		}
+		return nil, util.NewAppError(constants.CodeInternal, fmt.Sprintf("保存问题 %d 的录音顺序失败", questionID), err)
+	}
+	s.logger.Info(fmt.Sprintf(constants.LogRecordingReorder, actor.Username, questionID, len(recordingIDs)))
+	return recordings, nil
 }
 
 func (s *recordingService) Delete(actor *model.User, id uint) error {

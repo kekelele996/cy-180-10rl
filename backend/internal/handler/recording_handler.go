@@ -209,6 +209,31 @@ func (h *RecordingHandler) PlayAudio(c *gin.Context) {
 	_, _ = io.Copy(c.Writer, obj)
 }
 
+// Reorder 保存某问题下录音的人工播放顺序（采访工作台与项目时间线按此顺序播放）。
+func (h *RecordingHandler) Reorder(c *gin.Context) {
+	actor, err := middleware.CurrentUser(c)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+	questionID, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+	var req dto.ReorderRecordingsRequest
+	if !bindJSON(c, &req) {
+		return
+	}
+	recordings, err := h.recordingSvc.Reorder(actor, questionID, req.RecordingIDs)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+	h.auditSvc.Record(actor.ID, actor.Username, actor.Role, "recording.reorder", "question", questionID,
+		fmt.Sprintf("保存问题 %d 的录音播放顺序，共 %d 段", questionID, len(req.RecordingIDs)), c.ClientIP(), middleware.RequestID(c))
+	util.OKMessage(c, constants.MsgRecordingReordered, gin.H{"list": recordings})
+}
+
 // Delete 删除录音。
 func (h *RecordingHandler) Delete(c *gin.Context) {
 	actor, err := middleware.CurrentUser(c)

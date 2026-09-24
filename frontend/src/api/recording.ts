@@ -26,6 +26,11 @@ export function updateRecordingSummary(id: number, summary: string) {
   return put<Recording>(`/recordings/${id}/summary`, { summary })
 }
 
+// 保存某问题下录音的人工播放顺序，recordingIds 按目标顺序排列。
+export function reorderQuestionRecordings(questionId: number, recordingIds: number[]) {
+  return put<{ list: Recording[] }>(`/questions/${questionId}/recordings/order`, { recording_ids: recordingIds })
+}
+
 export function uploadRecordingAudio(id: number, file: Blob, durationSeconds: number, onProgress?: (p: number) => void) {
   const form = new FormData()
   form.append('file', file, `recording_${id}.webm`)

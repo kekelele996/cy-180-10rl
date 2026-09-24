@@ -1,0 +1,18 @@
+$ go build ./...
+exit=0
+$ go vet ./...
+exit=0
+$ go test ./...
+?   	github.com/oralhistory/oralhistory/cmd/server	[no test files]
+?   	github.com/oralhistory/oralhistory/internal/config	[no test files]
+?   	github.com/oralhistory/oralhistory/internal/constants	[no test files]
+?   	github.com/oralhistory/oralhistory/internal/database	[no test files]
+?   	github.com/oralhistory/oralhistory/internal/dto	[no test files]
+?   	github.com/oralhistory/oralhistory/internal/handler	[no test files]
+?   	github.com/oralhistory/oralhistory/internal/middleware	[no test files]
+?   	github.com/oralhistory/oralhistory/internal/model	[no test files]
+ok  	github.com/oralhistory/oralhistory/internal/repository	1.972s
+?   	github.com/oralhistory/oralhistory/internal/router	[no test files]
+ok  	github.com/oralhistory/oralhistory/internal/service	3.595s
+?   	github.com/oralhistory/oralhistory/internal/util	[no test files]
+exit=0

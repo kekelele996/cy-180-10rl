@@ -46,6 +46,7 @@ export interface Recording {
   duration_seconds: number
   summary: string
   status: RecordingStatus
+  sort_order: number
   created_by: number
   created_at: string
   updated_at: string

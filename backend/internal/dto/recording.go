@@ -15,6 +15,12 @@ type UpdateRecordingRequest struct {
 	Status          string `json:"status" binding:"omitempty,oneof=recording processing ready failed"`
 }
 
+// ReorderRecordingsRequest 保存某问题下录音人工播放顺序的请求，
+// recording_ids 按目标播放顺序排列；未包含的录音按原相对顺序顺延，不允许混入其他问题的录音。
+type ReorderRecordingsRequest struct {
+	RecordingIDs []uint `json:"recording_ids" binding:"required,min=1,dive,gt=0"`
+}
+
 // RecordingResponse 录音响应。
 type RecordingResponse struct {
 	ID              uint   `json:"id"`

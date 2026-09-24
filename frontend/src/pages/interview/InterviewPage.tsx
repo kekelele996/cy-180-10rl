@@ -111,12 +111,14 @@ function RecorderPanel({
   questionId: number
   onRecorded: (msg: string) => void
 }) {
-  const { create, uploadAudio, updateSummary, fetchByQuestion } = useRecordingStore()
+  const { create, uploadAudio, updateSummary, reorder, fetchByQuestion } = useRecordingStore()
   const { markers, fetchByRecording, create: createMarker } = useTimelineStore()
   const [recording, setRecording] = useState(false)
   const [seconds, setSeconds] = useState(0)
   const [uploading, setUploading] = useState(0)
   const [recordings, setRecordings] = useState<Awaited<ReturnType<typeof fetchByQuestion>>>([])
+  const [orderDirty, setOrderDirty] = useState(false)
+  const [savingOrder, setSavingOrder] = useState(false)
   const [summaryDraft, setSummaryDraft] = useState('')
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
@@ -124,6 +126,7 @@ function RecorderPanel({
 
   const reload = useCallback(async () => {
     setRecordings(await fetchByQuestion(questionId))
+    setOrderDirty(false)
   }, [fetchByQuestion, questionId])
 
   useEffect(() => {
@@ -190,6 +193,32 @@ function RecorderPanel({
     await fetchByRecording(recordingId)
   }
 
+  // 本地上移/下移，仅调整当前问题内的片段，保存后生效。
+  const move = (index: number, delta: number) => {
+    setRecordings((list) => {
+      const target = index + delta
+      if (target < 0 || target >= list.length) return list
+      const next = [...list]
+      const [item] = next.splice(index, 1)
+      next.splice(target, 0, item)
+      return next
+    })
+    setOrderDirty(true)
+  }
+
+  const saveOrder = async () => {
+    setSavingOrder(true)
+    try {
+      await reorder(questionId, recordings.map((r) => r.id))
+      await reload()
+      onRecorded('录音顺序已保存，采访工作台与项目时间线将按新顺序播放')
+    } catch (e) {
+      onRecorded(e instanceof Error ? e.message : '保存录音顺序失败')
+    } finally {
+      setSavingOrder(false)
+    }
+  }
+
   return (
     <section className="card">
       <div className="card-title">录音面板</div>
@@ -219,16 +248,52 @@ function RecorderPanel({
 
       <div className="card-title" style={{ marginTop: 20 }}>
         本问题已录片段（{recordings.length}）
+        {recordings.length > 1 && (
+          <button
+            className="btn btn-primary btn-small"
+            style={{ marginLeft: 12 }}
+            disabled={!orderDirty || savingOrder}
+            onClick={saveOrder}
+          >
+            {savingOrder ? '保存中…' : '保存顺序'}
+          </button>
+        )}
+        {orderDirty && (
+          <span className="muted" style={{ marginLeft: 8 }}>
+            顺序已调整，保存后生效
+          </span>
+        )}
       </div>
       {recordings.length === 0 ? (
         <EmptyState title="还没有录音" description="点击上方开始录音" />
       ) : (
         <div className="recording-list">
-          {recordings.map((r) => (
+          {recordings.map((r, idx) => (
             <div key={r.id} className="recording-row">
               <div className="recording-meta">
+                <span className="muted">#{idx + 1}</span>
                 <StatusBadge status={r.status} type="recording" />
                 <span className="muted">{formatDuration(r.duration_seconds)}</span>
+                {recordings.length > 1 && (
+                  <span className="row-actions">
+                    <button
+                      className="btn btn-plain btn-small"
+                      disabled={idx === 0}
+                      title="上移"
+                      onClick={() => move(idx, -1)}
+                    >
+                      ↑ 上移
+                    </button>
+                    <button
+                      className="btn btn-plain btn-small"
+                      disabled={idx === recordings.length - 1}
+                      title="下移"
+                      onClick={() => move(idx, 1)}
+                    >
+                      ↓ 下移
+                    </button>
+                  </span>
+                )}
               </div>
               <AudioPlayer recordingId={r.id} durationSeconds={r.duration_seconds} />
               <div className="summary-edit">

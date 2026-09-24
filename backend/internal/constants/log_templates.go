@@ -22,6 +22,7 @@ const (
 	LogRecordingUpload     = "recording upload by=%s project=%d question=%d duration=%d status=%s"
 	LogRecordingSummary    = "recording summary by=%s recording=%d summary=%s"
 	LogRecordingStatus     = "recording status transition by=%s recording=%d from=%s to=%s"
+	LogRecordingReorder    = "recording reorder by=%s question=%d count=%d"
 	LogRecordingDelete     = "recording delete by=%s recording=%d"
 	LogMarkerCreate        = "timeline marker create by=%s project=%d recording=%d ts=%d label=%s"
 	LogMarkerUpdate        = "timeline marker update by=%s marker=%d label=%s"

@@ -79,6 +79,27 @@ paths:
   /questions/{id}:
     put: { summary: 更新问题, tags: [questions], security: [{ BearerAuth: [] }] }
     delete: { summary: 删除问题, tags: [questions], security: [{ BearerAuth: [] }] }
+  /questions/{id}/recordings/order:
+    put:
+      summary: 保存某问题下录音的人工播放顺序（采访工作台与项目时间线共用）
+      description: recording_ids 按目标播放顺序排列；未包含的录音按原相对顺序顺延；包含其他问题的录音或重复 ID 返回 40905。
+      tags: [recordings]
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recording_ids]
+              properties:
+                recording_ids:
+                  type: array
+                  items: { type: integer }
+                  example: [3, 1, 2]
+      responses:
+        '200': { description: 录音播放顺序已保存，返回该问题下重排后的录音列表 }
   /recordings:
     get:
       summary: 录音列表（project_id 或 question_id）
