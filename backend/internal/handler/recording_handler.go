@@ -88,6 +88,31 @@ func (h *RecordingHandler) List(c *gin.Context) {
 	util.OK(c, gin.H{"list": recordings})
 }
 
+// Reorder 保存某问题下录音片段的人工排序（整理人员上移/下移后的最终顺序）。
+func (h *RecordingHandler) Reorder(c *gin.Context) {
+	actor, err := middleware.CurrentUser(c)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+	questionID, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+	var req dto.ReorderRecordingsRequest
+	if !bindJSON(c, &req) {
+		return
+	}
+	recordings, err := h.recordingSvc.Reorder(actor, questionID, req.RecordingIDs)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+	h.auditSvc.Record(actor.ID, actor.Username, actor.Role, "recording.reorder", "question", questionID,
+		fmt.Sprintf("保存问题 %d 的录音顺序，片段数 %d", questionID, len(recordings)), c.ClientIP(), middleware.RequestID(c))
+	util.OKMessage(c, constants.MsgRecordingReordered, gin.H{"list": recordings})
+}
+
 // Update 更新录音摘要/时长/状态。
 func (h *RecordingHandler) Update(c *gin.Context) {
 	actor, err := middleware.CurrentUser(c)

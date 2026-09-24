@@ -1,5 +1,5 @@
 // 项目详情页：基本信息、采访问题、时间线（录音片段 + 关键节点 + 一句话摘要）。
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import AudioPlayer from '../../components/AudioPlayer'
 import ConfirmDialog from '../../components/ConfirmDialog'
@@ -46,6 +46,28 @@ export default function ProjectDetailPage() {
   }, [createQuestion, newQuestion, projectId])
 
   const markersOf = (recordingId: number) => markers.filter((m) => m.recording_id === recordingId)
+
+  // 时间线分组：按采访问题的 sort_order 分组，组内沿用录音的人工排序（后端已按 sort_order 返回）。
+  // 同一问题的多次补录聚在一起连续播放，不同问题之间互不混入。
+  const recordingGroups = useMemo(() => {
+    const groups: { questionId: number; items: Recording[] }[] = []
+    const indexByQuestion = new Map<number, number>()
+    const questionRank = new Map(questions.map((q, i) => [q.id, i]))
+    for (const r of recordings) {
+      let gi = indexByQuestion.get(r.question_id)
+      if (gi === undefined) {
+        gi = groups.length
+        indexByQuestion.set(r.question_id, gi)
+        groups.push({ questionId: r.question_id, items: [] })
+      }
+      groups[gi].items.push(r)
+    }
+    return groups.sort(
+      (a, b) =>
+        (questionRank.get(a.questionId) ?? Number.MAX_SAFE_INTEGER) -
+        (questionRank.get(b.questionId) ?? Number.MAX_SAFE_INTEGER),
+    )
+  }, [questions, recordings])
 
   if (!detail) {
     return <div className="page">加载中…</div>
@@ -150,9 +172,20 @@ export default function ProjectDetailPage() {
           <EmptyState title="还没有录音片段" description="前往采访工作台开始录音，片段将按时间线展示" />
         ) : (
           <div className="timeline">
-            {recordings.map((r) => (
-              <TimelineItem key={r.id} recording={r} markers={markersOf(r.id)} onCreateMarker={createMarker} />
-            ))}
+            {recordingGroups.map((group) => {
+              const question = questions.find((q) => q.id === group.questionId)
+              return (
+                <div key={group.questionId} className="timeline-group">
+                  <div className="timeline-group-title">
+                    {question ? `问题：${question.content}` : `问题 #${group.questionId}`}
+                    <span className="muted">（{group.items.length} 段）</span>
+                  </div>
+                  {group.items.map((r) => (
+                    <TimelineItem key={r.id} recording={r} markers={markersOf(r.id)} onCreateMarker={createMarker} />
+                  ))}
+                </div>
+              )
+            })}
           </div>
         )}
       </section>
@@ -184,14 +217,12 @@ function TimelineItem({
   }) => Promise<void>
 }) {
   const [label, setLabel] = useState('')
-  const question = useQuestionStore((s) => s.questions.find((q) => q.id === recording.question_id))
 
   return (
     <div className="timeline-item">
       <div className="timeline-dot" />
       <div className="timeline-content">
         <div className="timeline-head">
-          <span className="timeline-q">{question ? `问题：${question.content}` : `问题 #${recording.question_id}`}</span>
           <StatusBadge status={recording.status} type="recording" />
           <span className="timeline-duration">{formatDuration(recording.duration_seconds)}</span>
         </div>

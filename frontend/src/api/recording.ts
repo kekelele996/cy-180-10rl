@@ -36,3 +36,10 @@ export function uploadRecordingAudio(id: number, file: Blob, durationSeconds: nu
 export function deleteRecording(id: number) {
   return del<null>(`/recordings/${id}`)
 }
+
+// 保存某问题下录音片段的人工排序（整理人员上移/下移后的完整顺序）。
+export function reorderQuestionRecordings(questionId: number, recordingIds: number[]) {
+  return put<{ list: Recording[] }>(`/questions/${questionId}/recordings/reorder`, {
+    recording_ids: recordingIds,
+  })
+}

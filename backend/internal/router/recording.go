@@ -11,6 +11,10 @@ import (
 
 // RegisterRecordingRoutes 注册录音路由。
 func RegisterRecordingRoutes(g *gin.RouterGroup, h *handler.RecordingHandler, cfg *config.Config, logger *slog.Logger) {
+	// 录音人工排序以问题为作用域，路径挂在 questions 下，与问题级查询保持一致。
+	g.PUT("/questions/:id/recordings/reorder",
+		middleware.Auth(cfg.JWTSecret, logger), h.Reorder)
+
 	group := g.Group("/recordings", middleware.Auth(cfg.JWTSecret, logger))
 	{
 		group.GET("", h.List)

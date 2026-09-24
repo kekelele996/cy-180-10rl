@@ -47,11 +47,13 @@ CREATE TABLE IF NOT EXISTS recordings (
   duration_seconds INT NOT NULL DEFAULT 0,
   summary VARCHAR(512) DEFAULT '',
   status VARCHAR(32) NOT NULL DEFAULT 'recording',
+  sort_order INT NOT NULL DEFAULT 0,
   created_by BIGINT UNSIGNED NOT NULL,
   created_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   INDEX idx_recordings_project (project_id),
-  INDEX idx_recordings_question (question_id)
+  INDEX idx_recordings_question (question_id),
+  INDEX idx_recordings_sort (question_id, sort_order)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS timeline_markers (

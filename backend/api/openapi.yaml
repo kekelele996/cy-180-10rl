@@ -79,6 +79,42 @@ paths:
   /questions/{id}:
     put: { summary: 更新问题, tags: [questions], security: [{ BearerAuth: [] }] }
     delete: { summary: 删除问题, tags: [questions], security: [{ BearerAuth: [] }] }
+  /questions/{id}/recordings/reorder:
+    put:
+      summary: 保存某问题下录音片段的人工排序（上移/下移后的完整顺序）
+      description: recording_ids 必须是该问题当前全部片段、不重复、不跨问题；保存后采访工作台与项目时间线均按新顺序播放。
+      tags: [recordings]
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recording_ids]
+              properties:
+                recording_ids:
+                  type: array
+                  minItems: 1
+                  items: { type: integer, format: uint64 }
+                  example: [12, 10, 11]
+      responses:
+        '200':
+          description: 排序已保存，返回该问题重排后的片段列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  message: { type: string, example: 录音顺序已保存 }
+                  data:
+                    type: object
+                    properties:
+                      list:
+                        type: array
+                        items: { $ref: '#/components/schemas/Recording' }
+        '409': { description: 提交集合与库中集合不一致（有新增/删除/跨问题混入） }
   /recordings:
     get:
       summary: 录音列表（project_id 或 question_id）
@@ -114,3 +150,18 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  schemas:
+    Recording:
+      type: object
+      properties:
+        id: { type: integer, format: uint64 }
+        project_id: { type: integer, format: uint64 }
+        question_id: { type: integer, format: uint64 }
+        audio_key: { type: string }
+        duration_seconds: { type: integer }
+        summary: { type: string }
+        status: { type: string, enum: [recording, processing, ready, failed] }
+        sort_order: { type: integer, description: 问题内人工排序，从 0 开始；新录音追加到末尾 }
+        created_by: { type: integer, format: uint64 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }

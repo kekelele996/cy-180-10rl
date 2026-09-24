@@ -21,6 +21,8 @@ type RecordingService interface {
 	Update(actor *model.User, id uint, req *dto.UpdateRecordingRequest) (*model.Recording, error)
 	UpdateSummary(actor *model.User, id uint, summary string) (*model.Recording, error)
 	AttachAudio(actor *model.User, id uint, audioKey string, duration int) (*model.Recording, error)
+	// Reorder 保存整理人员对某问题下录音片段的人工排序，返回该问题重排后的完整片段列表。
+	Reorder(actor *model.User, questionID uint, recordingIDs []uint) ([]model.Recording, error)
 	Delete(actor *model.User, id uint) error
 	CountByProject(projectID uint) (int64, error)
 }
@@ -58,7 +60,8 @@ func (s *recordingService) Create(actor *model.User, req *dto.CreateRecordingReq
 		Status:          constants.RecordingStatusRecording,
 		CreatedBy:       actor.ID,
 	}
-	if err := s.recordingRepo.Create(recording); err != nil {
+	// 新录音固定接在该问题片段末尾，不影响其他问题的收听顺序。
+	if err := s.recordingRepo.AppendToQuestion(recording); err != nil {
 		return nil, util.NewAppError(constants.CodeInternal, fmt.Sprintf("创建问题 %d 的录音失败", req.QuestionID), err)
 	}
 	s.logger.Info(fmt.Sprintf(constants.LogRecordingUpload, actor.Username, recording.ProjectID, recording.QuestionID, recording.DurationSeconds, recording.Status))
@@ -89,6 +92,38 @@ func (s *recordingService) List(projectID, questionID uint) ([]model.Recording, 
 	if err != nil {
 		return nil, util.NewAppError(constants.CodeInternal, "录音列表查询失败", err)
 	}
+	return recordings, nil
+}
+
+// Reorder 保存某问题下录音的人工排序。
+// 排序范围严格限定在单个问题内：提交的片段集合必须与该问题当前集合完全一致，
+// 缺少、多出、重复或混入其他问题的片段都会被拒绝；重排只改 sort_order，不动片段本身。
+func (s *recordingService) Reorder(actor *model.User, questionID uint, recordingIDs []uint) ([]model.Recording, error) {
+	if _, err := s.questionRepo.FindByID(questionID); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, util.NewAppError(constants.CodeNotFound, fmt.Sprintf("问题 %d 不存在", questionID), err)
+		}
+		return nil, util.NewAppError(constants.CodeInternal, fmt.Sprintf("查询问题 %d 失败", questionID), err)
+	}
+	seen := make(map[uint]struct{}, len(recordingIDs))
+	for _, id := range recordingIDs {
+		if _, dup := seen[id]; dup {
+			return nil, util.NewAppError(constants.CodeValidation, fmt.Sprintf("录音 %d 在排序中重复出现", id), nil)
+		}
+		seen[id] = struct{}{}
+	}
+	if err := s.recordingRepo.ReorderByQuestion(questionID, recordingIDs); err != nil {
+		if errors.Is(err, repository.ErrOrderMismatch) {
+			return nil, util.NewAppError(constants.CodeConflict,
+				fmt.Sprintf("问题 %d 的录音集合已变化，请刷新后重新排序（片段不能跨问题移动）", questionID), err)
+		}
+		return nil, util.NewAppError(constants.CodeInternal, fmt.Sprintf("保存问题 %d 的录音排序失败", questionID), err)
+	}
+	recordings, err := s.recordingRepo.ListByQuestion(questionID)
+	if err != nil {
+		return nil, util.NewAppError(constants.CodeInternal, fmt.Sprintf("查询问题 %d 的录音列表失败", questionID), err)
+	}
+	s.logger.Info(fmt.Sprintf(constants.LogRecordingReorder, actor.Username, questionID, len(recordings)))
 	return recordings, nil
 }
 

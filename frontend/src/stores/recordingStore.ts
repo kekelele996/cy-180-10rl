@@ -4,6 +4,7 @@ import {
   createRecording,
   deleteRecording,
   listRecordings,
+  reorderQuestionRecordings,
   updateRecordingSummary,
   uploadRecordingAudio,
 } from '../api/recording'
@@ -17,6 +18,7 @@ interface RecordingState {
   create: (payload: { project_id: number; question_id: number; duration_seconds?: number }) => Promise<Recording>
   uploadAudio: (id: number, blob: Blob, duration: number, onProgress?: (p: number) => void) => Promise<void>
   updateSummary: (id: number, summary: string) => Promise<void>
+  reorderByQuestion: (questionId: number, recordingIds: number[]) => Promise<Recording[]>
   remove: (id: number) => Promise<void>
 }
 
@@ -54,6 +56,30 @@ export const useRecordingStore = create<RecordingState>((set) => ({
   async updateSummary(id, summary) {
     const updated = await updateRecordingSummary(id, summary)
     set((s) => ({ recordings: s.recordings.map((r) => (r.id === id ? updated : r)) }))
+  },
+
+  // 保存某问题下的人工排序，返回该问题重排后的列表；全局时间线列表中该问题分组原位替换，其他问题不受影响。
+  async reorderByQuestion(questionId, recordingIds) {
+    const res = await reorderQuestionRecordings(questionId, recordingIds)
+    set((s) => {
+      const recordings: Recording[] = []
+      let inserted = false
+      for (const r of s.recordings) {
+        if (r.question_id === questionId) {
+          if (!inserted) {
+            recordings.push(...res.list)
+            inserted = true
+          }
+          continue
+        }
+        recordings.push(r)
+      }
+      if (!inserted) {
+        recordings.push(...res.list)
+      }
+      return { recordings }
+    })
+    return res.list
   },
 
   async remove(id) {

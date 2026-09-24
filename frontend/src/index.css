@@ -426,6 +426,20 @@ textarea:focus {
   padding-left: 20px;
 }
 
+.timeline-group {
+  margin-bottom: 18px;
+}
+
+.timeline-group-title {
+  font-weight: 600;
+  font-size: 14px;
+  padding: 6px 10px;
+  margin-bottom: 8px;
+  background: #eef2ff;
+  border-left: 3px solid var(--primary);
+  border-radius: 4px;
+}
+
 .timeline-item {
   position: relative;
   padding-bottom: 18px;
@@ -607,6 +621,37 @@ textarea:focus {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px;
+}
+
+.recording-row.order-editing {
+  border-color: var(--primary);
+  background: #f8faff;
+}
+
+.recording-order-no {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #eef2ff;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.order-buttons {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.order-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
 }
 
 .recording-meta {

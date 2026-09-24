@@ -15,6 +15,11 @@ type UpdateRecordingRequest struct {
 	Status          string `json:"status" binding:"omitempty,oneof=recording processing ready failed"`
 }
 
+// ReorderRecordingsRequest 某问题下录音片段的人工排序请求，RecordingIDs 为保存后的完整收听顺序。
+type ReorderRecordingsRequest struct {
+	RecordingIDs []uint `json:"recording_ids" binding:"required,min=1,dive,gt=0"`
+}
+
 // RecordingResponse 录音响应。
 type RecordingResponse struct {
 	ID              uint   `json:"id"`
@@ -24,6 +29,7 @@ type RecordingResponse struct {
 	DurationSeconds int    `json:"duration_seconds"`
 	Summary         string `json:"summary"`
 	Status          string `json:"status"`
+	SortOrder       int    `json:"sort_order"`
 	CreatedBy       uint   `json:"created_by"`
 	CreatedAt       string `json:"created_at"`
 	UpdatedAt       string `json:"updated_at"`
